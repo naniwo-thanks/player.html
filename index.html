@@ -9,68 +9,102 @@
 
   <style>
     html, body { height: 100%; margin: 0; background: #000; }
+
     /* 16:9 を維持してレスポンシブ */
     .box { position: relative; width: 100%; padding-top: 56.25%; overflow: hidden; }
-    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-    /* 自動再生がブロックされた時の軽い案内 */
+
+    /* APIが内部で挿入するiframeに適用 */
+    #yt, #yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+    /* 自動再生がブロックされた時の案内 */
     .hint {
       position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       color:#fff; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: rgba(0,0,0,.35); opacity:0; pointer-events:none; transition:opacity .2s;
+      background: rgba(0,0,0,.35);
+      opacity:0; pointer-events:none; transition:opacity .2s;
     }
     .hint.show { opacity:1; pointer-events:auto; }
+
     .hint button {
-      appearance:none; border:1px solid rgba(255,255,255,.7); background:transparent;
-      color:#fff; padding:10px 14px; border-radius:999px;
+      appearance:none;
+      border:1px solid rgba(255,255,255,.7);
+      background:transparent;
+      color:#fff;
+      padding:10px 14px;
+      border-radius:999px;
+      cursor:pointer;
     }
   </style>
 </head>
 
 <body>
   <div class="box">
-    <iframe id="yt" referrerpolicy="strict-origin-when-cross-origin"
-      allow="autoplay; encrypted-media; picture-in-picture"
-      allowfullscreen></iframe>
+    <!-- YouTube IFrame APIがここにiframeを生成する -->
+    <div id="yt"></div>
 
     <div id="hint" class="hint">
-      <button id="play">タップして再生</button>
+      <button id="play">タップして音を出す</button>
     </div>
   </div>
 
   <script>
+    // ====== 設定 ======
     const VIDEO_ID = "Th-PIM_yXMo";
+    const START_SEC = 1994; // 33分14秒 = 33*60 + 14
 
-    // ループに playlist=VIDEO_ID が必要
-    // iPhone対策：playsinline=1 / mute=1
-    // できるだけUIを消す：controls=0
-    function buildSrc() {
-         const params = new URLSearchParams({
-      autoplay: "1",
-      mute: "1",
-      loop: "1",
-      playlist: VIDEO_ID,
-      controls: "0",
-      playsinline: "1",
-      rel: "0",
-      modestbranding: "1",
-      origin: window.location.origin,
-      start: "1992" // 33分12秒（=1992秒）から開始
-    });
-    return `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?` + params.toString();
-  }
+    let player;
 
-  const iframe = document.getElementById("yt");
-  iframe.src = buildSrc();
+    // ====== YouTube IFrame Player API 読み込み ======
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
 
-  const hint = document.getElementById("hint");
-  const btn  = document.getElementById("play");
-  const showHintLater = () => hint.classList.add("show");
+    // API準備完了時に呼ばれる（グローバル必須）
+    window.onYouTubeIframeAPIReady = function () {
+      player = new YT.Player("yt", {
+        host: "https://www.youtube-nocookie.com",
+        videoId: VIDEO_ID,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,                // 最初は無音で自動再生（モバイル対策）
+          start: START_SEC,       // 33:12 から開始
+          loop: 1,
+          playlist: VIDEO_ID,     // ループ必須
+          controls: 0,
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1,
+          origin: window.location.origin
+        },
+        events: {
+          onReady: () => {
+            // 自動再生が効かない環境でも「押せば音が出る」導線を出す
+            setTimeout(() => document.getElementById("hint")?.classList.add("show"), 1200);
+          },
+          onStateChange: (e) => {
+            // 再生が始まったら案内を隠す（無音再生でもOK）
+            // YT.PlayerState.PLAYING === 1
+            if (e.data === 1) document.getElementById("hint")?.classList.remove("show");
+          }
+        }
+      });
+    };
 
-  setTimeout(showHintLater, 1500);
+    // ====== タップで音ON ======
+    document.getElementById("play")?.addEventListener("click", () => {
+      const hint = document.getElementById("hint");
+      hint?.classList.remove("show");
 
-  btn.addEventListener("click", () => {
-    hint.classList.remove("show");
-    iframe.src = buildSrc(); // 再読込で起動を促す
+      if (!player) return;
+
+      // ユーザー操作なのでミュート解除が通りやすい
+      player.unMute();
+      player.setVolume(100);
+
+      // 念のため開始位置へ（環境によってズレることがある）
+      player.seekTo(START_SEC, true);
+
+      player.playVideo();
     });
   </script>
 </body>
