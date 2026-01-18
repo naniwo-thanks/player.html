@@ -44,35 +44,33 @@
     // iPhone対策：playsinline=1 / mute=1
     // できるだけUIを消す：controls=0
     function buildSrc() {
-      const params = new URLSearchParams({
-        autoplay: "1",
-        mute: "1",
-        loop: "1",
-        playlist: VIDEO_ID,
-        controls: "0",
-        playsinline: "1",
-        rel: "0",
-        modestbranding: "1",
-        // origin は環境依存でズレると厄介なので、ホスト側(origin)に合わせて動的に入れる
-        origin: window.location.origin
-      });
-      return `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?` + params.toString();
-    }
+         const params = new URLSearchParams({
+      autoplay: "1",
+      mute: "1",
+      loop: "1",
+      playlist: VIDEO_ID,
+      controls: "0",
+      playsinline: "1",
+      rel: "0",
+      modestbranding: "1",
+      origin: window.location.origin,
+      start: "1992" // 33分12秒（=1992秒）から開始
+    });
+    return `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?` + params.toString();
+  }
 
-    const iframe = document.getElementById("yt");
-    iframe.src = buildSrc();
+  const iframe = document.getElementById("yt");
+  iframe.src = buildSrc();
 
-    // 自動再生が落ちた時の保険（ユーザー操作で開始）
-    const hint = document.getElementById("hint");
-    const btn  = document.getElementById("play");
-    const showHintLater = () => hint.classList.add("show");
+  const hint = document.getElementById("hint");
+  const btn  = document.getElementById("play");
+  const showHintLater = () => hint.classList.add("show");
 
-    // 1.5秒待っても再生してない雰囲気なら案内を出す（雑だけど実用上ちょうどいい）
-    setTimeout(showHintLater, 1500);
+  setTimeout(showHintLater, 1500);
 
-    btn.addEventListener("click", () => {
-      hint.classList.remove("show");
-      iframe.src = buildSrc(); // 再読込で起動を促す
+  btn.addEventListener("click", () => {
+    hint.classList.remove("show");
+    iframe.src = buildSrc(); // 再読込で起動を促す
     });
   </script>
 </body>
